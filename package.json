@@ -1,6 +1,6 @@
 {
   "name": "hot-watch",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "🔥👀  Watch files and hot reload them",
   "main": "index.js",
   "repository": "https://github.com/kevin940726/hot-watch",
