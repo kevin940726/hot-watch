@@ -1,0 +1,60 @@
+{
+  "name": "hot-watch",
+  "version": "0.0.0",
+  "description": "🔥👀  Watch files and hot reload them",
+  "main": "index.js",
+  "repository": "https://github.com/kevin940726/hot-watch",
+  "author": "Kai Hao",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "chokidar": "^3.3.0"
+  },
+  "devDependencies": {
+    "canopic": "^0.2.1"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,css,json,md,mdx,html}": [
+      "prettier --write",
+      "git add"
+    ],
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "git add"
+    ]
+  },
+  "prettier": {
+    "printWidth": 80,
+    "tabWidth": 2,
+    "useTabs": false,
+    "semi": true,
+    "singleQuote": true,
+    "quoteProps": "as-needed",
+    "jsxSingleQuote": false,
+    "trailingComma": "es5",
+    "bracketSpacing": true,
+    "jsxBracketSameLine": false,
+    "arrowParens": "avoid"
+  },
+  "babel": {
+    "presets": [
+      [
+        "@babel/preset-env",
+        {
+          "loose": true,
+          "targets": {
+            "node": "current"
+          }
+        }
+      ]
+    ]
+  }
+}
