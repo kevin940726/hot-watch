@@ -3,7 +3,7 @@ const watch = require('../../');
 
 const server = http.createServer((req, res) => {
   res.statusCode = 200;
-  res.end(require('./a'));
+  res.end(require('./a') + '\n');
 });
 
 server.listen(3000, () => {

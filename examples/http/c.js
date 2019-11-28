@@ -1,3 +1,3 @@
 const d = require('./d');
 
-module.exports = 'b' + d;
+module.exports = 'c' + d;
