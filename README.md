@@ -17,7 +17,7 @@ const watch = require('hot-watch');
 const server = http.createServer((req, res) => {
   res.statusCode = 200;
   // Module to be hot-reloaded
-  // Be sure the dynamic require them, or else have to re-require them in `onAfterInvalidate`
+  // Be sure to dynamic require them, or else have to re-require them in `onAfterInvalidate`
   res.end(require('./app'));
 });
 
@@ -26,6 +26,7 @@ server.listen(3000, () => {
   const unwatch = watch();
 
   server.on('close', () => {
+    // Remember to call un-watch to free the process
     unwatch();
   });
 });
