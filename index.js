@@ -10,20 +10,24 @@ function patchRequire() {
 
   const { proxy, revoke } = Proxy.revocable(originalRequire, {
     apply(target, thisArg, argumentsList) {
-      for (const child of thisArg.children) {
-        if (parentsMap.has(child)) {
-          parentsMap.get(child).delete(thisArg);
+      if (thisArg) {
+        for (const child of thisArg.children) {
+          if (parentsMap.has(child)) {
+            parentsMap.get(child).delete(thisArg);
+          }
         }
       }
 
       const returnModule = Reflect.apply(target, thisArg, argumentsList);
 
-      for (const child of thisArg.children) {
-        if (!parentsMap.has(child)) {
-          parentsMap.set(child, new Set());
-        }
+      if (thisArg) {
+        for (const child of thisArg.children) {
+          if (!parentsMap.has(child)) {
+            parentsMap.set(child, new Set());
+          }
 
-        parentsMap.get(child).add(thisArg);
+          parentsMap.get(child).add(thisArg);
+        }
       }
 
       return returnModule;
