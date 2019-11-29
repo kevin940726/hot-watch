@@ -1,19 +1,41 @@
 const chokidar = require('chokidar');
+const Module = require('module');
 
 const SKIP_REGEX = /\/node_modules\/|\.node$/;
 
 const parentsMap = new WeakMap();
 
-function setParents(modulePath) {
-  if (require.cache[modulePath]) {
-    require.cache[modulePath].children.forEach(child => {
-      if (!parentsMap.has(child)) {
-        parentsMap.set(child, new Set());
+function patchRequire() {
+  const originalRequire = Module.prototype.require;
+
+  const { proxy, revoke } = Proxy.revocable(originalRequire, {
+    apply(target, thisArg, argumentsList) {
+      for (const child of thisArg.children) {
+        if (parentsMap.has(child)) {
+          parentsMap.get(child).delete(thisArg);
+        }
       }
 
-      parentsMap.get(child).add(require.cache[modulePath]);
-    });
-  }
+      const returnModule = Reflect.apply(target, thisArg, argumentsList);
+
+      for (const child of thisArg.children) {
+        if (!parentsMap.has(child)) {
+          parentsMap.set(child, new Set());
+        }
+
+        parentsMap.get(child).add(thisArg);
+      }
+
+      return returnModule;
+    },
+  });
+
+  Module.prototype.require = proxy;
+
+  return function unpatch() {
+    Module.prototype.require = originalRequire;
+    revoke();
+  };
 }
 
 function invalidate(modulePath) {
@@ -29,6 +51,7 @@ function invalidate(modulePath) {
   const parents = parentsMap.get(mod);
 
   if (!SKIP_REGEX.test(modulePath)) {
+    parentsMap.delete(mod);
     delete require.cache[modulePath];
   }
 
@@ -49,30 +72,18 @@ function watch({
     ignored: ['**/*.d.ts', '**/*.tsbuildinfo', ...ignore],
   });
 
+  const unpatch = patchRequire();
+
   watcher.on('change', path => {
     Promise.resolve(stop())
       .then(() => {
-        if (!parentsMap.size) {
-          Object.keys(require.cache).forEach(modulePath => {
-            setParents(modulePath);
-          });
-        }
-
-        if (require.cache[path]) {
-          require.cache[path].children.forEach(child => {
-            if (parentsMap.has(child)) {
-              parentsMap.get(child).clear();
-            }
-          });
-        }
-        setParents(path);
-
         invalidate(path);
       })
       .then(() => restart());
   });
 
   return function unwatch() {
+    unpatch();
     return watcher.close();
   };
 }
