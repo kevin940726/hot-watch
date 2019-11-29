@@ -2,10 +2,9 @@ const chokidar = require('chokidar');
 const Module = require('module');
 
 const SKIP_REGEX = /\/node_modules\/|\.node$/;
+const DEFAULT_IGNORED = ['**/*.d.ts', '**/*.tsbuildinfo'];
 
-const parentsMap = new WeakMap();
-
-function patchRequire() {
+function patchRequire(parentsMap) {
   const originalRequire = Module.prototype.require;
 
   const { proxy, revoke } = Proxy.revocable(originalRequire, {
@@ -42,7 +41,7 @@ function patchRequire() {
   };
 }
 
-function invalidate(modulePath) {
+function invalidate(modulePath, parentsMap) {
   if (
     !modulePath ||
     !require.cache[modulePath] ||
@@ -61,7 +60,7 @@ function invalidate(modulePath) {
 
   if (parents) {
     parents.forEach(parent => {
-      invalidate(parent.filename);
+      invalidate(parent.filename, parentsMap);
     });
   }
 }
@@ -73,21 +72,23 @@ function watch({
   onAfterInvalidate = () => {},
 } = {}) {
   const watcher = chokidar.watch(cwd, {
-    ignored: ['**/*.d.ts', '**/*.tsbuildinfo', ...ignore],
+    ignored: [...DEFAULT_IGNORED, ...ignore],
   });
 
-  const unpatch = patchRequire();
+  const parentsMap = new WeakMap();
+  const unpatch = patchRequire(parentsMap);
 
   watcher.on('change', path => {
     Promise.resolve(onBeforeInvalidate(path))
       .then(() => {
-        invalidate(path);
+        invalidate(path, parentsMap);
       })
       .then(() => onAfterInvalidate(path));
   });
 
   return function unwatch() {
     unpatch();
+    parentsMap.clear();
     return watcher.close();
   };
 }
