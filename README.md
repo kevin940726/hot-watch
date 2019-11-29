@@ -16,7 +16,9 @@ const watch = require('hot-watch');
 
 const server = http.createServer((req, res) => {
   res.statusCode = 200;
-  res.end(require('./app')); // module to be hot-reloaded
+  // Module to be hot-reloaded
+  // Be sure the dynamic require them, or else have to re-require them in `onAfterInvalidate`
+  res.end(require('./app'));
 });
 
 server.listen(3000, () => {
@@ -32,25 +34,28 @@ server.listen(3000, () => {
 ## API
 
 ```js
-// watch accepts an option object, here are their default values
+// watch accepts an optional option object and here are their default values
 const unwatch = watch({
   // The directory the watcher is going to watch on,
   // can be either a string or an array of strings
   cwd: process.cwd(),
   // Files should not be watched, expected an array of strings
   ignore: [],
-  // The function which will be fired whenever the watcher detect a change and before hot-reloading,
-  // you can perform necessary cleanup here
+  // The function which will be fired with changed file path whenever the watcher detect a change and before hot-reloading,
   // Can return void or a Promise
-  stop: () => {},
-  // The function which will be fired after old modules are disposed,
-  // you can re-require modules here to get the changed modules
+  onBeforeInvalidate: path => {},
+  // The function which will be fired with changed file path after old modules are invalidated,
+  // you can re-require modules here to update to the latest modules if necessary
   // Can return void or a Promise
-  restart: () => {},
+  onAfterInvalidate: path => {},
 });
 
 unwatch(); // Stop and close the watcher
 ```
+
+## How
+
+The basic idea is to clean up `require.cache` key whenever the files changed. We have to walk up the require tree to delete the caches for all it's parents. The native module API only stores the first cached parent for each module. In order to get all the parents and their parents and so on, we monkey-patch `require` to store all their parents in an internal `parentsMap`.
 
 ## License
 

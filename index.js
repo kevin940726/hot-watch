@@ -65,8 +65,8 @@ function invalidate(modulePath) {
 function watch({
   cwd = process.cwd(),
   ignore = [],
-  stop = () => {},
-  restart = () => {},
+  onBeforeInvalidate = () => {},
+  onAfterInvalidate = () => {},
 } = {}) {
   const watcher = chokidar.watch(cwd, {
     ignored: ['**/*.d.ts', '**/*.tsbuildinfo', ...ignore],
@@ -75,11 +75,11 @@ function watch({
   const unpatch = patchRequire();
 
   watcher.on('change', path => {
-    Promise.resolve(stop())
+    Promise.resolve(onBeforeInvalidate(path))
       .then(() => {
         invalidate(path);
       })
-      .then(() => restart());
+      .then(() => onAfterInvalidate(path));
   });
 
   return function unwatch() {
@@ -89,3 +89,4 @@ function watch({
 }
 
 module.exports = watch;
+exports.watch = watch;
