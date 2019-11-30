@@ -7,6 +7,10 @@
   "author": "Kai Hao",
   "license": "MIT",
   "private": false,
+  "scripts": {
+    "test": "jest --runInBand",
+    "prepare": "yarn test"
+  },
   "dependencies": {
     "chokidar": "^3.3.0"
   },
@@ -43,18 +47,5 @@
     "bracketSpacing": true,
     "jsxBracketSameLine": false,
     "arrowParens": "avoid"
-  },
-  "babel": {
-    "presets": [
-      [
-        "@babel/preset-env",
-        {
-          "loose": true,
-          "targets": {
-            "node": "current"
-          }
-        }
-      ]
-    ]
   }
 }
