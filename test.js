@@ -113,6 +113,41 @@ test('circle dependencies', async () => {
   expect(await get()).toBe('app: adbd');
 });
 
+test('more complex dependencies', async () => {
+  /**
+   *    R
+   *  / | \
+   * a  |  |
+   *  \ |  |
+   *    b  |
+   *     \ |
+   *       c (<-> d)
+   */
+  await fs.writeFile(
+    path.join(tmpDir, 'app.js'),
+    `module.exports = 'app: ' + require('./a') + require('./b') + require('./c');`
+  );
+  await fs.writeFile(
+    path.join(tmpDir, 'a.js'),
+    `module.exports = 'a' + require('./b');`
+  );
+  await fs.writeFile(
+    path.join(tmpDir, 'b.js'),
+    `module.exports = 'b' + require('./c');`
+  );
+  await fs.writeFile(path.join(tmpDir, 'c.js'), `module.exports = 'c';`);
+
+  await runServer();
+
+  expect(await get()).toBe('app: abcbcc');
+
+  const promise = waitFor('c.js');
+  await fs.writeFile(path.join(tmpDir, 'c.js'), `module.exports = 'd';`);
+  await promise;
+
+  expect(await get()).toBe('app: abdbdd');
+});
+
 /* -------------------- Helpers -------------------- */
 async function get() {
   return new Promise((resolve, reject) => {
