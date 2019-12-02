@@ -44,10 +44,7 @@ const server = require('http').createServer((req, res) => {
 
   watcher.on('change', changedPath => {
     if (changedPath === pathListening) {
-      // Wait for the watcher to sync and catch up on the changes
-      setTimeout(() => {
-        resolvePromise();
-      }, 1000);
+      resolvePromise();
     }
   });
 
