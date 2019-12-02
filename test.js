@@ -32,13 +32,13 @@ const server = require('http').createServer((req, res) => {
   watcher = chokidar.watch(tmpDir);
 
   watcher.on('change', changedPath => {
-    if (pathListening && changedPath === path.join(tmpDir, pathListening)) {
+    if (changedPath === pathListening) {
       resolvePromise();
     }
   });
 
   waitFor = changedPath => {
-    pathListening = changedPath;
+    pathListening = path.join(tmpDir, changedPath);
 
     promise = new Promise(resolve => {
       resolvePromise = resolve;
@@ -63,19 +63,14 @@ test('simple direct dependency', async () => {
    * |
    * a (<-> b)
    */
-  await fs.writeFile(
-    path.join(tmpDir, 'app.js'),
-    `module.exports = 'app: ' + require('./a');`
-  );
-  await fs.writeFile(path.join(tmpDir, 'a.js'), `module.exports = 'a';`);
+  await writeFile('app.js', `'app: ' + require('./a')`);
+  await writeFile('a.js', `'a'`);
 
   await runServer();
 
   expect(await get()).toBe('app: a');
 
-  const promise = waitFor('a.js');
-  await fs.writeFile(path.join(tmpDir, 'a.js'), `module.exports = 'b';`);
-  await promise;
+  await writeFile('a.js', `'a'`);
 
   expect(await get()).toBe('app: b');
 });
@@ -88,27 +83,16 @@ test('circle dependencies', async () => {
    *  \ /
    *   c (<-> d)
    */
-  await fs.writeFile(
-    path.join(tmpDir, 'app.js'),
-    `module.exports = 'app: ' + require('./a') + require('./b');`
-  );
-  await fs.writeFile(
-    path.join(tmpDir, 'a.js'),
-    `module.exports = 'a' + require('./c');`
-  );
-  await fs.writeFile(
-    path.join(tmpDir, 'b.js'),
-    `module.exports = 'b' + require('./c');`
-  );
-  await fs.writeFile(path.join(tmpDir, 'c.js'), `module.exports = 'c';`);
+  await writeFile('app.js', `'app: ' + require('./a') + require('./b')`);
+  await writeFile('a.js', `'a' + require('./c')`);
+  await writeFile('b.js', `'b' + require('./c')`);
+  await writeFile('c.js', `'c'`);
 
   await runServer();
 
   expect(await get()).toBe('app: acbc');
 
-  const promise = waitFor('c.js');
-  await fs.writeFile(path.join(tmpDir, 'c.js'), `module.exports = 'd';`);
-  await promise;
+  await writeFile('c.js', `'d'`);
 
   expect(await get()).toBe('app: adbd');
 });
@@ -123,27 +107,19 @@ test('more complex dependencies', async () => {
    *     \ |
    *       c (<-> d)
    */
-  await fs.writeFile(
-    path.join(tmpDir, 'app.js'),
-    `module.exports = 'app: ' + require('./a') + require('./b') + require('./c');`
+  await writeFile(
+    'app.js',
+    `'app: ' + require('./a') + require('./b') + require('./c')`
   );
-  await fs.writeFile(
-    path.join(tmpDir, 'a.js'),
-    `module.exports = 'a' + require('./b');`
-  );
-  await fs.writeFile(
-    path.join(tmpDir, 'b.js'),
-    `module.exports = 'b' + require('./c');`
-  );
-  await fs.writeFile(path.join(tmpDir, 'c.js'), `module.exports = 'c';`);
+  await writeFile('a.js', `'a' + require('./b')`);
+  await writeFile('b.js', `'b' + require('./c')`);
+  await writeFile('c.js', `'c'`);
 
   await runServer();
 
   expect(await get()).toBe('app: abcbcc');
 
-  const promise = waitFor('c.js');
-  await fs.writeFile(path.join(tmpDir, 'c.js'), `module.exports = 'd';`);
-  await promise;
+  await writeFile('c.js', `'d'`);
 
   expect(await get()).toBe('app: abdbdd');
 });
@@ -183,4 +159,18 @@ async function runServer() {
 
     checkPort();
   });
+}
+
+async function writeFile(fileName, data) {
+  const absolutePath = path.join(tmpDir, fileName);
+
+  try {
+    await fs.writeFile(absolutePath, `module.exports = ${data};`, {
+      flag: 'wx',
+    });
+  } catch (err) {
+    const promise = waitFor(fileName);
+    await fs.writeFile(absolutePath, `module.exports = ${data};`);
+    await promise;
+  }
 }
