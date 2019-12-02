@@ -1,9 +1,15 @@
-const fs = require('fs').promises;
+const fs = require('fs');
+const { promisify } = require('util');
 const http = require('http');
 const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
 const chokidar = require('chokidar');
+
+const fsPromises = fs.promises || {
+  mkdtemp: promisify(fs.mkdtemp),
+  writeFile: promisify(fs.writeFile),
+};
 
 let tmpDir;
 let serverProcess;
@@ -11,9 +17,9 @@ let watcher;
 let waitFor;
 
 beforeEach(async () => {
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), path.sep));
+  tmpDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), path.sep));
 
-  await fs.writeFile(
+  await fsPromises.writeFile(
     path.join(tmpDir, 'server.js'),
     `const watch = require('${__dirname}');
 const server = require('http').createServer((req, res) => {
@@ -33,7 +39,10 @@ const server = require('http').createServer((req, res) => {
 
   watcher.on('change', changedPath => {
     if (changedPath === pathListening) {
-      resolvePromise();
+      // Wait for the watcher to sync and catch up on the changes
+      setTimeout(() => {
+        resolvePromise();
+      }, 100);
     }
   });
 
@@ -70,7 +79,7 @@ test('simple direct dependency', async () => {
 
   expect(await get()).toBe('app: a');
 
-  await writeFile('a.js', `'a'`);
+  await writeFile('a.js', `'b'`);
 
   expect(await get()).toBe('app: b');
 });
@@ -165,12 +174,12 @@ async function writeFile(fileName, data) {
   const absolutePath = path.join(tmpDir, fileName);
 
   try {
-    await fs.writeFile(absolutePath, `module.exports = ${data};`, {
+    await fsPromises.writeFile(absolutePath, `module.exports = ${data};`, {
       flag: 'wx',
     });
   } catch (err) {
     const promise = waitFor(fileName);
-    await fs.writeFile(absolutePath, `module.exports = ${data};`);
+    await fsPromises.writeFile(absolutePath, `module.exports = ${data};`);
     await promise;
   }
 }
