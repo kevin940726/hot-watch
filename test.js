@@ -47,7 +47,7 @@ const server = require('http').createServer((req, res) => {
       // Wait for the watcher to sync and catch up on the changes
       setTimeout(() => {
         resolvePromise();
-      }, 100);
+      }, 1000);
     }
   });
 
