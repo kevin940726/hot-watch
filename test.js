@@ -15,6 +15,11 @@ let tmpDir;
 let serverProcess;
 let watcher;
 let waitFor;
+let port = 3000;
+
+beforeAll(async () => {
+  await findAvailablePort();
+});
 
 beforeEach(async () => {
   tmpDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), path.sep));
@@ -25,7 +30,7 @@ beforeEach(async () => {
 const server = require('http').createServer((req, res) => {
   res.statusCode = 200;
   res.end(require('./app'));
-}).listen(3000, () => {
+}).listen(${port}, () => {
   const unwatch = watch();
   server.on('close', unwatch);
 });`
@@ -136,19 +141,19 @@ test('more complex dependencies', async () => {
 /* -------------------- Helpers -------------------- */
 async function get() {
   return new Promise((resolve, reject) => {
-    http.get('http://localhost:3000', res => {
+    const req = http.get(`http://localhost:${port}`, res => {
       let data = '';
 
       res.on('data', chunk => {
         data += chunk;
       });
 
-      res.on('error', reject);
-
       res.on('end', () => {
         resolve(data);
       });
     });
+
+    req.on('error', reject);
   });
 }
 
@@ -181,5 +186,16 @@ async function writeFile(fileName, data) {
     const promise = waitFor(fileName);
     await fsPromises.writeFile(absolutePath, `module.exports = ${data};`);
     await promise;
+  }
+}
+
+async function findAvailablePort() {
+  try {
+    await get();
+
+    port += 1;
+    return findAvailablePort();
+  } catch (err) {
+    return port;
   }
 }
